@@ -48,24 +48,25 @@ clame la première ministre, Elisabeth Borne, lors des questions au gouvernement
   });
   console.timeLog("Time to generate audio");
 
-  const buffer = Buffer.from(await opus.arrayBuffer());
+  // const buffer = Buffer.from(await opus.arrayBuffer());
   const demuxer = new prism.opus.OggDemuxer();
   const decoder = new prism.opus.Decoder({
     rate: 24000,
     channels: 1,
     frameSize: 2 * 960, // 60ms = 2 Bytes * 60*1ms
   });
-  demuxer.pipe(decoder);
 
   // collect all data from the stream into one single buffer
   const buffers: Buffer[] = [];
   decoder.on("data", (data) => {
     buffers.push(data);
   });
-  demuxer.write(buffer);
-  demuxer.end();
+  console.log(opus);
+  opus.body.pipe(demuxer).pipe(decoder);
+  // demuxer.write(buffer);
+  // demuxer.end();
   // join all buffers into one single buffer
-  const buffer2 = Buffer.concat(buffers);
+  // const buffer2 = Buffer.concat(buffers);
   console.timeEnd("Time to generate audio");
 
   // conver to pcm via OpusEncoder
