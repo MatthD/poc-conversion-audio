@@ -1,0 +1,22 @@
+{
+  "name": "test-openai-tts",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^20.9.2",
+    "typescript": "^5.2.2"
+  },
+  "dependencies": {
+    "@discordjs/opus": "^0.9.0",
+    "@types/fluent-ffmpeg": "^2.1.24",
+    "fluent-ffmpeg": "^2.1.2",
+    "openai": "^4.19.0"
+  }
+}
