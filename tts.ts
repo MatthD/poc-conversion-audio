@@ -5,44 +5,81 @@ import { OpusEncoder } from "@discordjs/opus";
 import ffmpeg from "fluent-ffmpeg";
 import path from "path";
 
+import prism from "prism-media";
+import stream from "stream";
+import { isBuffer } from "util";
 const openai = new OpenAI({
   apiKey: "sk-", //key from https://platform.openai.com/api-keys
 });
 
 const speechFile = path.resolve("./speech.ogg");
-const speechFilePCM = path.resolve(__dirname, "./speech.wav");
+const speechFilePCM = path.resolve(__dirname, "./speech.pcm1");
+const speechFilePCM2 = path.resolve(__dirname, "./speech.pcm2");
+const speechFileOpus = path.resolve(__dirname, "./speech.raw.opus");
 const speechFilePCMdiscord = path.resolve(__dirname, "./speech-dicord.wav");
 
 console.log({ speechFilePCM });
 
+class PrintSizeTransform extends stream.Transform {
+  // constructor(options: any) {
+  //   super(options);
+  // }
+
+  _transform(chunk: Buffer, encoding: any, callback: any) {
+    console.log(`Type of chunk: ${isBuffer(chunk)}`);
+    console.log(`Type of chunk[0]: ${typeof chunk[0]}`);
+    console.log(`Chunk size: ${chunk.length}`);
+    console.log(`Encoding: ${encoding}`);
+    callback(null, chunk);
+  }
+}
+
 const opusEncoder = new OpusEncoder(24000, 1);
 (async () => {
+  console.time("Time to generate audio");
   const opus = await openai.audio.speech.create({
     response_format: "opus",
     model: "tts-1",
     voice: "alloy",
-    input: "Hello my name is matthias, I am a developper of 31 years old.",
+    input: `
+Le gant est relevé. « Nous ne renoncerons jamais à trouver des compromis »,
+clame la première ministre, Elisabeth Borne, lors des questions au gouvernement
+à l’Assemblée nationale.`,
   });
+  console.timeLog("Time to generate audio");
 
   const buffer = Buffer.from(await opus.arrayBuffer());
-  const fileWrote = await fs.promises.writeFile(speechFile, buffer);
+  const demuxer = new prism.opus.OggDemuxer();
+  const decoder = new prism.opus.Decoder({
+    rate: 24000,
+    channels: 1,
+    frameSize: 2 * 960, // 60ms = 2 Bytes * 60*1ms
+  });
+  demuxer.pipe(decoder);
 
-  // convert to pcm via ffmpeg
-  const command = convertOggToWav(speechFile);
-  command.pipe(fs.createWriteStream(speechFilePCM));
+  // collect all data from the stream into one single buffer
+  const buffers: Buffer[] = [];
+  decoder.on("data", (data) => {
+    buffers.push(data);
+  });
+  demuxer.write(buffer);
+  demuxer.end();
+  // join all buffers into one single buffer
+  const buffer2 = Buffer.concat(buffers);
+  console.timeEnd("Time to generate audio");
 
   // conver to pcm via OpusEncoder
-  const decoded = opusEncoder.decode(buffer);
-  const fileWroteDiscord = await fs.promises.writeFile(
-    speechFilePCMdiscord,
-    buffer
-  );
+  // const decoded = opusEncoder.decode(buffer);
+  // const fileWroteDiscord = await fs.promises.writeFile(
+  //   speechFilePCMdiscord,
+  //   buffer
+  // );
 })();
 
 function convertOggToWav(oggFilePath: string) {
   const command = ffmpeg()
     .input(createReadStream(oggFilePath))
-    .audioCodec("pcm_alaw")
+    .audioCodec("pcm_s16le")
     .audioFrequency(24000)
     .audioChannels(1)
     .toFormat("wav")
